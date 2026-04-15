@@ -290,7 +290,7 @@ return view.extend({
             class       : 'cbi-input-text',
             type        : 'password',
             value       : cfg.key,
-            placeholder : 'e5265a924657a8807dcef7a7b8e89562...',
+            placeholder : 'e5265a924657a8807dc...',
             change      : keyHandlers.change,
             input       : keyHandlers.input
         });
@@ -312,12 +312,9 @@ return view.extend({
         var settingsSection = E('div', { class: 'cbi-section' }, [
             E('legend', {}, 'Настройки подключения'),
             E('div', { class: 'cbi-section-node' }, [
-                E('p', {
-                    style: 'color:#6c757d;font-size:0.88em;margin:0 0 12px;'
-                }, '💾 Изменения сохраняются автоматически'),
                 row('Провайдер', null, providerSel),
                 row('Room ID',
-                    'Идентификатор комнаты (для Telemost — числовой, для Jazz — user:code)',
+                    'Идентификатор комнаты (Telemost — числовой, Jazz — id:pass)',
                     roomInput),
                 row('Ключ (key)',
                     'Общий секретный ключ сервера (hex-строка, 64 символа)',
@@ -338,7 +335,7 @@ return view.extend({
         self._logsEl = logsEl;
 
         var logsSection = E('div', { class: 'cbi-section' }, [
-            E('legend', {}, '📋 Логи (logread -e olcrtc)'),
+            E('legend', {}, '📋 Логи'),
             E('div', { class: 'cbi-section-node' }, [ logsEl ])
         ]);
 
