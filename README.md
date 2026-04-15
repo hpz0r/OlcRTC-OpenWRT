@@ -157,6 +157,11 @@ cd olcrtc
 ```
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o build/olcrtc-linux-amd64 ./cmd/olcrtc
 ```
+Вариант для windows:
+```
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o build/olcrtc-windows-amd64.exe ./cmd/olcrtc
+$env:GOOS="windows"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"; go build -trimpath -ldflags="-s -w" -o build/olcrtc-windows-amd64.exe ./cmd/olcrtc
+```
 > Вариант В для ленивых скачать готовый бинарник olcrtc-linux-amd64 из этого репозитория 
 
 Запускаете бинарник, указывая параметры:
