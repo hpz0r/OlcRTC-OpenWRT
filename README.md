@@ -2,6 +2,8 @@
 
 Панель управления LuCI для запуска [OlcRTC](https://github.com/openlibrecommunity/olcrtc) в режиме клиента на роутере с OpenWRT.
 
+<img width="1212" height="1208" alt="Image" src="https://github.com/user-attachments/assets/307b3dd2-50f3-4dc6-8a8b-d7dee7fd36ca" />
+
 > [!NOTE]
 > **OlcRTC** — проект [zarazaex](https://github.com/zarazaex69) / [openlibrecommunity](https://github.com/openlibrecommunity).  
 > Реализация обхода блокировок через WebRTC-туннели поверх разрешённых сервисов.
