@@ -333,6 +333,7 @@ function card(title, nodes) {
 
 return view.extend({
 
+    _hwid                : null,
     _statusTimer         : null,
     _logsTimer           : null,
     _statusEl            : null,
@@ -360,6 +361,18 @@ return view.extend({
 
     load: function () {
         return Promise.all([ uci.load('olcrtc'), getStatus() ]);
+    },
+
+    /* Загрузка подписки с правильными заголовками */
+    _fetchSub: function (url) {
+        var hwid = this._hwid || '';
+        var args = ['-q', '-O', '-', '--timeout=15',
+                    '-U', 'olcrtc-openwrt'];
+        if (hwid) args.push('--header=X-HWID: ' + hwid);
+        args.push('--header=Accept-Encoding: gzip');
+        args.push(url);
+        return callExec('/usr/bin/wget', args, null)
+            .then(function (res) { return res || ''; });
     },
 
     _saveField: function (key, value) {
@@ -600,7 +613,7 @@ return view.extend({
             if (entry.timer) clearInterval(entry.timer);
             if (sub.refreshMs > 0) {
                 entry.timer = setInterval(function () {
-                    callExec('/usr/bin/wget', ['-qO-', '--timeout=10', url], null)
+                    self._fetchSub(url)
                         .then(function (c) {
                             if (!c) return;
                             var updated = parseSubscription(c);
@@ -613,7 +626,7 @@ return view.extend({
         if (subInitial) {
             applyAndSchedule(subInitial);
         } else {
-            callExec('/usr/bin/wget', ['-qO-', '--timeout=10', url], null)
+            self._fetchSub(url)
                 .then(function (content) {
                     if (!content) return Promise.reject(new Error('empty'));
                     var sub = parseSubscription(content);
@@ -647,7 +660,7 @@ return view.extend({
         }
         if (self._uriInput) self._uriInput.style.outline = '';
 
-        return callExec('/usr/bin/wget', ['-qO-', '--timeout=10', url], null)
+        return self._fetchSub(url)
             .then(function (content) {
                 if (!content) return Promise.reject(new Error('empty'));
                 var sub = parseSubscription(content);
@@ -719,6 +732,7 @@ return view.extend({
         var initStatus = data[1];
 
         self._subscriptions = [];
+        self._hwid = uci.get('olcrtc', 'config', 'hwid') || '';
 
         var cfg = {
             carrier          : uci.get('olcrtc', 'config', 'carrier')           || 'telemost',

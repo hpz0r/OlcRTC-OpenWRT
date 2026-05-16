@@ -1,4 +1,5 @@
 config olcrtc 'config'
+	option hwid ''
 	option carrier 'telemost'
 	option transport 'vp8channel'
 	option room_id ''
