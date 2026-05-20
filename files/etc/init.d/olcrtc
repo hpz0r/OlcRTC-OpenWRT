@@ -49,8 +49,14 @@ start_service() {
     config_get video_tile_rs    config video_tile_rs    '20'
     config_get ffmpeg_bin       config ffmpeg           'ffmpeg'
 
-    if [ -z "$room_id" ] || [ -z "$key" ]; then
-        logger -t "$LOGTAG" "Ошибка: не заданы Room ID или ключ — запуск невозможен"
+    if [ -z "$key" ]; then
+        logger -t "$LOGTAG" "Ошибка: не задан ключ — запуск невозможен"
+        return 1
+    fi
+
+    # Валидация Room ID: теперь он необязателен только для jazz
+    if [ "$carrier" != "jazz" ] && [ -z "$room_id" ]; then
+        logger -t "$LOGTAG" "Ошибка: не задан Room ID для $carrier — запуск невозможен"
         return 1
     fi
 
@@ -71,7 +77,6 @@ start_service() {
         -mode cnc \
         -carrier "$carrier" \
         -transport "$transport" \
-        -id "$room_id" \
         -client-id "$client_id" \
         -key "$key" \
         -link direct \
@@ -80,9 +85,12 @@ start_service() {
         -socks-host "$socks_host" \
         -socks-port "$socks_port"
 
+    # Добавляем -id только если room_id не пустой
+    [ -n "$room_id" ] && procd_append_param command -id "$room_id"
+    
     [ -n "$socks_user" ] && procd_append_param command -socks-user "$socks_user"
     [ -n "$socks_pass" ] && procd_append_param command -socks-pass "$socks_pass"
-    [ "$debug" = "1" ]   && procd_append_param command --debug
+    [ "$debug" = "1" ]  && procd_append_param command --debug
 
     case "$transport" in
         vp8channel)
