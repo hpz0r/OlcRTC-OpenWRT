@@ -7,7 +7,6 @@
 /*
  * OlcRTC-OpenWRT — LuCI-панель управления
  * Основана на проекте OlcRTC (https://github.com/openlibrecommunity/olcrtc)
- * автора zarazaex / openlibrecommunity
  */
 
 /* ══════════════════════════════════════════════════════════
@@ -65,12 +64,12 @@ var callExec = rpc.declare({
 
 /* ══════════════════════════════════════════════════════════
    Матрица совместимости carrier × transport
-   Jazz + datachannel: полностью запрещён.
+   Jazz + datachannel: работает, но нежелателен.
    ══════════════════════════════════════════════════════════ */
 
 var COMPAT = {
     telemost : ['vp8channel', 'videochannel'],
-    jazz     : ['vp8channel', 'seichannel', 'videochannel'],
+    jazz     : ['datachannel', 'vp8channel', 'seichannel', 'videochannel'],
     wbstream : ['datachannel', 'vp8channel', 'seichannel', 'videochannel']
 };
 
@@ -193,7 +192,6 @@ function parseOlcrtcUri(raw) {
     if (knownTransports.indexOf(transport) === -1) return null;
     if (key.length !== 64)                         return null;
     if (!clientId)                                 return null;
-    if (carrier === 'jazz' && transport === 'datachannel') return null;
 
     return {
         carrier: carrier, transport: transport,
@@ -305,14 +303,13 @@ function getLogs() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   Стиль выбранной карточки (зелёный, поверх цвета сервера)
+   Стиль выбранной карточки
    ══════════════════════════════════════════════════════════ */
 
 var CARD_SELECTED_STYLE = 'cursor:pointer;border:1px solid #3fb950;border-radius:8px;' +
     'padding:10px 14px;background:rgba(63,185,80,0.12);flex:1 1 150px;min-width:130px;max-width:220px;' +
     'transition:border-color 0.15s,background 0.15s;user-select:none;';
 
-/* ── Тёмно-фиолетовая тема ───────────────────────────────── */
 var CARD_STYLE = 'background:rgba(180,140,255,0.04);border:1px solid rgba(138,92,246,0.22);' +
                  'border-radius:12px;padding:18px 20px;height:100%;box-sizing:border-box;';
 var CARD_HDR   = 'font-size:0.7em;text-transform:uppercase;letter-spacing:0.08em;color:#b388ff;' +
@@ -355,15 +352,14 @@ return view.extend({
     _uriLabel            : null,
     _uriInput            : null,
     _subsContainer       : null,
-    _subscriptions       : null,   /* [{sectionName, url, blockEl, timer}] */
-    _selectedServer      : null,   /* {data, card, normalStyle, values} */
+    _subscriptions       : null,
+    _selectedServer      : null,
     _updateMatrix        : null,
 
     load: function () {
         return Promise.all([ uci.load('olcrtc'), getStatus() ]);
     },
 
-    /* Загрузка подписки с правильными заголовками */
     _fetchSub: function (url) {
         var hwid = this._hwid || '';
         var args = ['-q', '-O', '-', '--timeout=15',
@@ -445,8 +441,6 @@ return view.extend({
         if (this._tileRows) this._tileRows.forEach(function (el) { el.style.display = codec === 'tile'   ? '' : 'none'; });
     },
 
-    /* ── Выбранный сервер ─────────────────────────────────── */
-
     _checkServerSelection: function (field, value) {
         if (!this._selectedServer) return;
         if (this._selectedServer.values[field] === value) return;
@@ -497,27 +491,19 @@ return view.extend({
         cardEl.style.cssText = CARD_SELECTED_STYLE;
     },
 
-    /* ══════════════════════════════════════════════════════════
-       Управление подписками
-       ══════════════════════════════════════════════════════════ */
-
-    /* Заполнить содержимое блока подписки */
     _fillSubBlock: function (blockEl, entry, sub) {
         var self = this;
 
-        /* Если в блоке была выбранная карточка — сбрасываем */
         if (self._selectedServer && blockEl.contains(self._selectedServer.card))
             self._selectedServer = null;
 
         blockEl.innerHTML = '';
 
-        /* Применить цвет подписки к фону блока */
         var subBg     = sub.color ? hexToRgba(sub.color, 0.05) : '';
         var subBorder = sub.color ? hexToRgba(sub.color, 0.3)  : 'rgba(138,92,246,0.18)';
         blockEl.style.background   = subBg || '';
         blockEl.style.borderColor  = subBorder;
 
-        /* Заголовок */
         var title = (sub.icon ? sub.icon + ' ' : '') + (sub.name || 'Подписка');
         var stats = (sub.used ? sub.used : '') + (sub.available ? ' / ' + sub.available : '');
         var refreshInfo = '↻ каждые ' + refreshLabel(sub.refresh);
@@ -549,7 +535,6 @@ return view.extend({
             blockEl.appendChild(E('div', { style: 'margin-bottom:10px;' }));
         }
 
-        /* Карточки серверов */
         var cardsWrap = E('div', { style: 'display:flex;flex-wrap:wrap;gap:10px;' });
 
         sub.servers.forEach(function (server, idx) {
@@ -557,7 +542,6 @@ return view.extend({
             var name = server.name ||
                        (p.mimo ? p.mimo.split('/')[0].trim() : 'Сервер ' + (idx + 1));
 
-            /* Цвет карточки */
             var cardBg     = server.color ? hexToRgba(server.color, 0.07) : 'rgba(138,92,246,0.06)';
             var cardBorder = server.color ? hexToRgba(server.color, 0.35) : 'rgba(138,92,246,0.2)';
             var normalStyle = 'cursor:pointer;border:1px solid ' + cardBorder + ';border-radius:8px;' +
@@ -580,7 +564,6 @@ return view.extend({
 
             var card = E('div', { style: normalStyle }, lines);
 
-            /* Восстановить подсветку после обновления если это тот же объект */
             if (self._selectedServer && self._selectedServer.data === server) {
                 self._selectedServer.card       = card;
                 self._selectedServer.normalStyle = normalStyle;
@@ -594,7 +577,6 @@ return view.extend({
         blockEl.appendChild(cardsWrap);
     },
 
-    /* Создать блок подписки (fetches URL, если sub не передан) */
     _createSubBlock: function (sectionName, url, subInitial) {
         var self = this;
 
@@ -650,7 +632,6 @@ return view.extend({
         }
     },
 
-    /* Добавить подписку по URL (из поля ввода) */
     _addSubscription: function (url) {
         var self = this;
 
@@ -697,7 +678,6 @@ return view.extend({
             });
     },
 
-    /* Удалить подписку */
     _removeSubscription: function (sectionName) {
         var self = this;
         if (!self._subscriptions) return;
@@ -710,7 +690,6 @@ return view.extend({
             if (entry.blockEl && entry.blockEl.parentNode)
                 entry.blockEl.parentNode.removeChild(entry.blockEl);
 
-            /* Сбросить выбранный сервер если он был из этого блока */
             if (self._selectedServer && !document.body.contains(self._selectedServer.card))
                 self._selectedServer = null;
 
@@ -722,10 +701,6 @@ return view.extend({
             .then(function () { return callUciCommit('olcrtc'); })
             .catch(function (e) { console.error('[OlcRTC] delete sub error:', e); });
     },
-
-    /* ══════════════════════════════════════════════════════════
-       render()
-       ══════════════════════════════════════════════════════════ */
 
     render: function (data) {
         var self       = this;
@@ -765,7 +740,6 @@ return view.extend({
             ffmpeg           : uci.get('olcrtc', 'config', 'ffmpeg')            || 'ffmpeg'
         };
 
-        /* ── Статус ─────────────────────────────────────────── */
         var statusSpan = E('span');
         self._statusEl = statusSpan;
 
@@ -803,7 +777,6 @@ return view.extend({
             E('div', {}, [startBtn, stopBtn])
         ]);
 
-        /* ── Helpers ────────────────────────────────────────── */
         function row(label, hint, inputEl) {
             return E('div', { style: 'display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;' }, [
                 E('label', { style: 'flex:0 0 155px;font-size:0.82em;color:#b388ff;padding-top:7px;line-height:1.4;' }, label),
@@ -814,7 +787,6 @@ return view.extend({
             ]);
         }
 
-        /* Вертикальная раскладка: название сверху, поле снизу */
         function rowV(label, hint, inputEl) {
             return E('div', { style: 'margin-bottom:12px;' }, [
                 E('label', { style: 'display:block;font-size:0.82em;color:#b388ff;margin-bottom:5px;' }, label),
@@ -858,7 +830,6 @@ return view.extend({
             return E('input', attrs);
         }
 
-        /* ── Матрица совместимости ───────────────────────────── */
         var matrixCells = {};
         var carriers   = ['telemost', 'jazz', 'wbstream'];
         var transports = ['datachannel', 'vp8channel', 'seichannel', 'videochannel'];
@@ -917,7 +888,6 @@ return view.extend({
             E('tbody', {}, matrixRows)
         ]);
 
-        /* ── Carrier / Transport ─────────────────────────────── */
         var allowed = COMPAT[cfg.carrier] || COMPAT['telemost'];
 
         var carrierSel = E('select', {
@@ -946,14 +916,13 @@ return view.extend({
                 self._checkServerSelection('transport', t);
             }
         }, [
-            E('option', { value: 'datachannel',  selected: cfg.transport === 'datachannel'  ? '' : null, disabled: allowed.indexOf('datachannel')  === -1 ? '' : null }, 'datachannel — максимальная скорость (Telemost и Jazz — запрещён)'),
+            E('option', { value: 'datachannel',  selected: cfg.transport === 'datachannel'  ? '' : null, disabled: allowed.indexOf('datachannel')  === -1 ? '' : null }, 'datachannel — макс. скорость (Telemost — запрещён, Jazz — нежелательно)'),
             E('option', { value: 'vp8channel',   selected: cfg.transport === 'vp8channel'   ? '' : null }, 'vp8channel — работает везде (рекомендуется)'),
             E('option', { value: 'seichannel',   selected: cfg.transport === 'seichannel'   ? '' : null, disabled: allowed.indexOf('seichannel')   === -1 ? '' : null }, 'seichannel — не для Telemost'),
             E('option', { value: 'videochannel', selected: cfg.transport === 'videochannel' ? '' : null }, 'videochannel — крайний случай, везде')
         ]);
         self._transportSel = transportSel;
 
-        /* ── Поля подключения ───────────────────────────────── */
         var roomH = makeDebounced('room_id',   function (v) { self._checkServerSelection('room_id',   v); });
         var roomInput = E('input', { class: 'cbi-input-text', type: 'text', value: cfg.room_id, placeholder: 'Например: 49286587700808', change: roomH.change, input: roomH.input });
         self._roomInput = roomInput;
@@ -966,7 +935,6 @@ return view.extend({
         var keyInput = E('input', { class: 'cbi-input-text', type: 'password', value: cfg.key, placeholder: 'e5265a924657a8807dc...', change: keyH.change, input: keyH.input });
         self._keyInput = keyInput;
 
-        /* ── SOCKS5 ─────────────────────────────────────────── */
         var socksHostH = makeDebounced('socks_host');
         var socksHostInput  = E('input', { class: 'cbi-input-text', type: 'text',     value: cfg.socks_host, placeholder: '0.0.0.0', change: socksHostH.change, input: socksHostH.input });
         var socksPortInput  = E('input', { class: 'cbi-input-text', type: 'number',   value: cfg.socks_port, placeholder: '1080', min: '1', max: '65535', change: function (ev) { var v = parseInt(ev.target.value, 10); if (v >= 1 && v <= 65535) self._saveField('socks_port', String(v)); } });
@@ -975,7 +943,6 @@ return view.extend({
         var socksPassH      = makeDebounced('socks_pass');
         var socksPassInput  = E('input', { class: 'cbi-input-text', type: 'password', value: cfg.socks_pass, placeholder: '(без аутентификации — оставьте пустым)', change: socksPassH.change, input: socksPassH.input });
 
-        /* ── DNS / Debug ─────────────────────────────────────── */
         var dnsH = makeDebounced('dns');
         var dnsInput = E('input', { class: 'cbi-input-text', type: 'text', value: cfg.dns, placeholder: '1.1.1.1:53', change: dnsH.change, input: dnsH.input });
 
@@ -985,7 +952,6 @@ return view.extend({
             change: function (ev) { self._saveField('debug', ev.target.checked ? '1' : '0'); }
         });
 
-        /* ── Параметры транспортов ───────────────────────────── */
         var vp8FpsInput   = numInput('vp8_fps',   cfg.vp8_fps,   '25', 1, 120);
         var vp8BatchInput = numInput('vp8_batch', cfg.vp8_batch, '1',  1, null);
         var vp8Section = E('div', {}, [
@@ -1068,7 +1034,6 @@ return view.extend({
         self._updateTransportSections(cfg.transport);
         self._updateVideoCodecRows(cfg.video_codec);
 
-        /* ── URI / Подписки ─────────────────────────────────── */
         var uriLabel = E('span', { style: 'margin-left:10px;font-size:0.85em;vertical-align:middle;' }, '');
         self._uriLabel = uriLabel;
 
@@ -1086,13 +1051,11 @@ return view.extend({
                     return;
                 }
 
-                /* Ссылка на подписку */
                 if (val.indexOf('http://') === 0 || val.indexOf('https://') === 0) {
                     self._addSubscription(val);
                     return;
                 }
 
-                /* Прямой URI olcrtc:// */
                 var p = parseOlcrtcUri(val);
                 if (!p) {
                     uriLabel.textContent    = '✗ Неверный формат';
@@ -1127,7 +1090,6 @@ return view.extend({
         });
         self._uriInput = uriInput;
 
-        /* Контейнер для всех блоков подписок */
         var subsContainer = E('div', {});
         self._subsContainer = subsContainer;
 
@@ -1139,7 +1101,6 @@ return view.extend({
             subsContainer
         ]);
 
-        /* ── Карточки ─────────────────────────────────────────── */
         var matrixCard = card('Совместимость', [
             E('div', { style: 'overflow-x:auto;' }, [matrixTable])
         ]);
@@ -1148,7 +1109,7 @@ return view.extend({
             row('Сервис',    'Через какой сервис идёт туннель.', carrierSel),
             row('Транспорт', 'Протокол передачи данных внутри туннеля.', transportSel),
             E('hr', { style: HR_STYLE }),
-            row('Room ID',         'ID комнаты с сервера.', roomInput),
+            row('Room ID',         'ID комнаты с сервера. Для Jazz можно оставить пустым. Для WBStream нужно создать на сайте.', roomInput),
             row('Client ID',       'Идентификатор, должен совпадать с сервером.', clientInput),
             row('Ключ шифрования', 'HEX-строка 64 символа. openssl rand -hex 32.', keyInput)
         ]);
@@ -1181,7 +1142,6 @@ return view.extend({
 
         self._startPolling();
 
-        /* Загрузить сохранённые подписки */
         var savedSubs = uci.sections('olcrtc', 'subscription') || [];
         savedSubs.forEach(function (section) {
             var sectionName = section['.name'];
@@ -1200,35 +1160,29 @@ return view.extend({
             style: 'background:linear-gradient(160deg,#06011a 0%,#04091a 100%);' +
                    'border-radius:16px;padding:24px 28px;width:100%;box-sizing:border-box;'
         }, [
-            /* Заголовок */
             E('div', { style: 'text-align:center;margin-bottom:24px;' }, [
                 E('div', { style: 'font-size:1.45em;font-weight:700;color:#e2d9f3;letter-spacing:0.02em;margin-bottom:6px;' }, 'OpenWRT OlcRTC Panel'),
                 E('div', { style: 'width:60px;height:2px;background:linear-gradient(90deg,#8a5cf6,#c084fc);margin:0 auto;border-radius:1px;' })
             ]),
 
-            /* Строка 1: Статус + URI/Подписки */
             flexRow([
                 col(1, statusSection),
                 col(2, uriSection)
             ]),
 
-            /* Строка 2: Совместимость + Базовые настройки */
             flexRow([
                 col(2, matrixCard),
                 col(3, settingsCard)
             ]),
 
-            /* Строка 3: SOCKS5 + Транспорт + Дополнительно */
             flexRow([
                 col(2, socksCard),
                 col(3, transportCard),
                 col(2, advancedCard)
             ]),
 
-            /* Строка 4: Логи на всю ширину */
             logsCard,
 
-            /* Подвал */
             E('div', { style: 'text-align:center;margin-top:20px;padding-top:16px;' +
                               'border-top:1px solid rgba(138,92,246,0.15);font-size:0.78em;color:#6b5280;' }, [
                 'Страница проекта — ',
